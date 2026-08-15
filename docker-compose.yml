@@ -1,0 +1,28 @@
+services:
+  cw-a:
+    build:
+      context: ./chatwire
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    user: "1000:1000"
+    healthcheck:
+        disable: true
+    ports:
+      - "10000:10000/udp"  # Game port (cw-a/cw-local-config.json Port)
+#      - "20000:20000/tcp"  # RCON port (Port + Global Options.RconOffset)
+    volumes:
+      - ./data:/chatwire
+      - ./www:/chatwire/www
+      - ./softmod:/softmod:ro
+    environment:
+      - CW_DIR=/chatwire/cw-a
+    cap_add:
+      - SYS_NICE  # For process priority management
+
+  web:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./www/public_html:/usr/share/nginx/html:ro
