@@ -19,6 +19,29 @@ services:
     cap_add:
       - SYS_NICE  # For process priority management
 
+  # Second server, sharing the same Discord bot + cw-global-config.json.
+  # After first boot, edit data/cw-b/cw-local-config.json: set Port to
+  # something distinct and Channel.ChatChannel to a different channel.
+  # cw-b:
+  #   build:
+  #     context: ./chatwire
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   healthcheck:
+  #       disable: true
+  #   ports:
+  #     - "10001:10001/udp"  # Game port (cw-b/cw-local-config.json Port)
+  #     - "20001:20001/tcp"  # RCON port (Port + Global Options.RconOffset)
+  #   volumes:
+  #     - ./data:/chatwire
+  #     - ./www:/chatwire/www
+  #     - ./softmod:/softmod:ro
+  #   environment:
+  #     - CW_DIR=/chatwire/cw-b
+  #   cap_add:
+  #     - SYS_NICE  # For process priority management
+
   web:
     image: nginx:alpine
     restart: unless-stopped
