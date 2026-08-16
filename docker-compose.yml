@@ -1,7 +1,7 @@
 services:
   cw-a:
     build:
-      context: ./chatwire
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     user: "1000:1000"
@@ -24,7 +24,7 @@ services:
   # something distinct and Channel.ChatChannel to a different channel.
   # cw-b:
   #   build:
-  #     context: ./chatwire
+  #     context: .
   #     dockerfile: Dockerfile
   #   restart: unless-stopped
   #   user: "1000:1000"

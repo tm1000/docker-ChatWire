@@ -1,0 +1,8 @@
+[submodule "chatwire"]
+	path = chatwire
+	url = git@github.com:tm1000/ChatWire.git
+	branch = main
+[submodule "softmod"]
+	path = softmod
+	url = git@github.com:tm1000/SoftMod.git
+	branch = Main

@@ -1,23 +1,27 @@
 # chatwire81
 
 Runs a Factorio dedicated server managed entirely through Discord, using
-[ChatWire](https://github.com/M45-Science/ChatWire) (built from source) and
-optionally [SoftMod](https://github.com/M45-Science/SoftMod). Docker Compose
-builds the image, launches the bot, and — once you run a command in Discord —
-ChatWire downloads the actual Factorio headless server itself.
+[ChatWire](https://github.com/M45-Science/ChatWire) and optionally
+[SoftMod](https://github.com/M45-Science/SoftMod) — both pulled in as git
+submodules pointing at your own forks, and built from that local checkout.
+Docker Compose builds the image, launches the bot, and — once you run a
+command in Discord — ChatWire downloads the actual Factorio headless server
+itself.
 
 > [!NOTE]
-> There is no `factorio` binary baked into the image, and no SoftMod either.
-> ChatWire downloads Factorio on demand (see
-> [Installing Factorio](#installing-factorio)); SoftMod is up to you to
-> provide, so you can freely edit it for your own server (see
-> [SoftMod](#softmod)).
+> `chatwire/` and `softmod/` are git submodules, not vendored at build
+> time — run `make setup` (or `git submodule update --init --recursive`)
+> after cloning to populate them before building. There is no `factorio`
+> binary baked into the image; ChatWire downloads Factorio on demand (see
+> [Installing Factorio](#installing-factorio)). SoftMod injection is still
+> opt-in via config (see [SoftMod](#softmod)) even though the submodule is
+> checked out by default.
 
 ## How it fits together
 
 ```
 docker-compose.yml
-├── cw-a   (built from factorio/Dockerfile)   Discord bot + Factorio process
+├── cw-a   (built from ./Dockerfile, source in ./chatwire)   Discord bot + Factorio process
 └── web    (nginx:alpine)                     serves map archives / modpacks
 ```
 
@@ -43,9 +47,12 @@ optional — everything else works without it.
 ## Directory layout
 
 ```
-chatwire/
-  Dockerfile                    multi-stage build: ChatWire + runtime
-  files/chatwire-entrypoint.sh  container entrypoint
+Dockerfile                            multi-stage build: ChatWire + runtime (source: ./chatwire)
+docker-files/chatwire-entrypoint.sh   container entrypoint
+Makefile                              setup/build/up/down/logs shortcuts
+
+chatwire/                        git submodule — your ChatWire fork (build source)
+softmod/                         git submodule — your SoftMod fork; bind-mounted read-only to /softmod
 
 data/                            → bind-mounted to /chatwire in the container
   cw-global-config.json          shared across all servers (Discord bot, roles, paths)
@@ -58,16 +65,15 @@ www/
   public_html/
     archive/                     zipped map archives (from /archive-map)
     modpack/                     zipped mod packs (from /modpack)
-
-softmod/                         → bind-mounted read-only to /softmod
-                                    empty by default; clone SoftMod here yourself (see SoftMod)
 ```
 
-Everything under `data/`, `www/`, and `softmod/` is a bind mount, not a
-Docker volume — it's just regular files on the host, owned by your user
-(see [Running as your user](#running-as-your-user)). Edit the JSON config
-files directly with any editor; there's no `.env` file or
-environment-variable injection layer.
+Everything under `data/` and `www/` is a bind mount, not a Docker volume —
+it's just regular files on the host, owned by your user (see
+[Running as your user](#running-as-your-user)). `chatwire/` and `softmod/`
+are git submodules — real checkouts of your forks, not bind mounts — see
+[Setup](#setup) and [SoftMod](#softmod). Edit the JSON config files
+directly with any editor; there's no `.env` file or environment-variable
+injection layer.
 
 ## Configuration
 
@@ -95,7 +101,7 @@ environment-variable injection layer.
 | `Port` | Game UDP port. RCON is `Port + Global.Options.RconOffset`. Must be unique per server if you run more than one (see [Running multiple servers](#running-multiple-servers)). |
 | `Channel.ChatChannel` | Discord channel ID this server relays chat to and accepts commands from |
 | `Options.SoftModOptions.InjectSoftMod` | Whether to inject SoftMod into new maps (see [SoftMod](#softmod) below) |
-| `Options.SoftModOptions.SoftModPath` | Must point at `/softmod/` — that's where the Dockerfile puts it (see [SoftMod](#softmod)) |
+| `Options.SoftModOptions.SoftModPath` | Must point at `/softmod/` — that's where the compose bind mount puts it (see [SoftMod](#softmod)) |
 | `Options.ExpUpdates` | Switches Factorio installs/updates from the `stable` release channel to `experimental` |
 
 > [!IMPORTANT]
@@ -107,44 +113,35 @@ environment-variable injection layer.
 
 [SoftMod](https://github.com/M45-Science/SoftMod) is a Lua gameplay mod
 pack ChatWire can inject directly into a save's zip file — it isn't
-installed as a normal Factorio `mods/` mod, and the Dockerfile doesn't
-fetch it. It's **not bundled** — `softmod/` starts out empty
-(only a `.gitignore` that excludes everything except itself) and is
-bind-mounted read-only into the container at `/softmod`, so you can clone
-your own copy there and freely edit it — locale text, permissions, whatever
-— without touching the Docker build at all. Changes take effect on the next
-map generation; no rebuild, just `docker compose restart cw-a`.
+installed as a normal Factorio `mods/` mod. `softmod/` is a **git
+submodule** (see [`.gitmodules`](.gitmodules)) pointing at your own SoftMod
+fork, and is bind-mounted read-only into the container at `/softmod`, so
+you can edit it freely — locale text, permissions, whatever — without
+touching the Docker build at all. Changes take effect on the next map
+generation; no rebuild, just `docker compose restart cw-a`.
 
-To provide it, download and unzip the archive straight from GitHub — no
-git required, and no `.git` directory to worry about:
+After cloning this repo, populate `chatwire/` and `softmod/` with:
 
 ```bash
-curl -L -o /tmp/softmod.zip https://github.com/M45-Science/SoftMod/archive/refs/heads/Main.zip
-unzip -q /tmp/softmod.zip -d /tmp/softmod-extract
-cp -r /tmp/softmod-extract/SoftMod-Main/. ./softmod/
-rm -rf /tmp/softmod.zip /tmp/softmod-extract
+make setup
+# or: git submodule update --init --recursive
 ```
 
-(GitHub's archive zip extracts into a `SoftMod-Main/` subdirectory, so the
-contents get copied out of it into `softmod/` directly.)
-
-Alternatively, if you'd rather track it with git so you can pull upstream
-updates:
+Since `softmod/` tracks your own fork, edits made there are a normal git
+checkout — commit and push from inside `softmod/` like any other repo. To
+pull in newer commits from whatever branch/remote `softmod` is set to
+track:
 
 ```bash
-git clone https://github.com/M45-Science/SoftMod.git /tmp/softmod-clone
-rm -rf /tmp/softmod-clone/.git
-cp -r /tmp/softmod-clone/. ./softmod/
-rm -rf /tmp/softmod-clone
+make update-submodules
+# or: git submodule update --remote --merge
 ```
 
-(cloning through a temp directory avoids committing a nested `.git` into
-`softmod/`, and avoids `git clone`'s refusal to target a non-empty
-directory — `softmod/.gitignore` is already there.)
-
-If `softmod/` is empty and `InjectSoftMod: true`, injection just logs
-`No softmod files found, stopping.` and the map generates without it —
-harmless, not a crash.
+If you don't want SoftMod at all, set `InjectSoftMod: false` in
+`data/cw-a/cw-local-config.json` — the submodule can stay checked out, it's
+simply never used. If `softmod/` is ever empty (submodule not initialized)
+and `InjectSoftMod: true`, injection just logs `No softmod files found,
+stopping.` and the map generates without it — harmless, not a crash.
 
 **`SoftModPath` default is wrong for this setup.** If left empty,
 ChatWire auto-generates it as:
@@ -200,26 +197,36 @@ to run `/factorio start`, `/rcon`, etc. needs a role with at least
 
 ## Setup
 
-1. Create a Discord Application + Bot, invite it to your server with the
-   `bot` and `applications.commands` scopes.
-2. Fill in `data/cw-global-config.json`: `Discord.Token`, `Discord.Guild`,
-   `Discord.Application`, and whichever `Discord.Roles.*` names you use.
-3. Grant a role real Discord permissions (Administrator, or at least
-   Manage Roles) and assign it to whoever should administer the bot.
-4. Fill in `data/cw-a/cw-local-config.json`: `Channel.ChatChannel` (create a
-   Discord text channel and paste its ID).
-5. (Optional) Populate `softmod/` if you want SoftMod — see
-   [SoftMod](#softmod). Leave it empty to skip it.
-6. Build and start:
+1. Clone this repo and populate the submodules:
 
    ```bash
-   docker compose up -d --build
+   git clone --recurse-submodules <this-repo-url>
+   # or, if already cloned without --recurse-submodules:
+   make setup   # same as: git submodule update --init --recursive
    ```
 
-7. Watch it come up:
+2. Create a Discord Application + Bot, invite it to your server with the
+   `bot` and `applications.commands` scopes.
+3. Fill in `data/cw-global-config.json`: `Discord.Token`, `Discord.Guild`,
+   `Discord.Application`, and whichever `Discord.Roles.*` names you use.
+4. Grant a role real Discord permissions (Administrator, or at least
+   Manage Roles) and assign it to whoever should administer the bot.
+5. Fill in `data/cw-a/cw-local-config.json`: `Channel.ChatChannel` (create a
+   Discord text channel and paste its ID).
+6. (Optional) Set `Options.SoftModOptions.InjectSoftMod: false` if you don't
+   want SoftMod — see [SoftMod](#softmod). It's checked out by default.
+7. Build and start:
 
    ```bash
-   docker compose logs -f cw-a
+   make up
+   # or: docker compose up -d --build
+   ```
+
+8. Watch it come up:
+
+   ```bash
+   make logs
+   # or: docker compose logs -f cw-a
    ```
 
    You should see `Discord bot ready.` and `Bulk registering commands!`
@@ -286,9 +293,8 @@ on the service).
 
 ## Logging
 
-ChatWire's `cwlog` package only writes to log files by default. The
-Dockerfile patches it (`sed`, guarded by an assertion so an upstream change
-fails the build loudly rather than shipping unpatched) to also print to
+ChatWire's `cwlog` package only writes to log files by default. `chatwire/`
+(this fork) patches it directly in `cwlog/cwLog.go` to also print to
 stdout, so:
 
 ```bash
