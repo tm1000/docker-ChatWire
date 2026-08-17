@@ -23,6 +23,9 @@ up: setup
 down:
 	docker compose down
 
+watch:
+	docker compose logs -f
+
 restart:
 	docker compose restart cw-a
 
