@@ -3,6 +3,7 @@
 help:
 	@echo "Targets:"
 	@echo "  setup   - init/checkout git submodules (chatwire, softmod)"
+	@echo "  chown   - change ownership of the data directory to the current user"
 	@echo "  override - create docker-compose.override.yml from the example (if missing)"
 	@echo "  config  - print the merged compose config (base + override)"
 	@echo "  build   - build the cw-a and web images"
@@ -31,7 +32,7 @@ config:
 build: setup
 	docker compose build
 
-up: setup
+up: setup chown
 	docker compose up -d --build
 
 down:
@@ -51,3 +52,6 @@ ps:
 
 update-submodules:
 	git submodule update --remote --merge
+
+chown:
+	sudo chown -R 1000:1000 data
