@@ -1,0 +1,4 @@
+# Local Compose overrides — machine-specific, never committed.
+# Copy docker-compose.override.yml.example to get started (`make override`).
+docker-compose.override.yml
+docker-compose.override.yaml

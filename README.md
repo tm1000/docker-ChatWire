@@ -50,6 +50,9 @@ optional — everything else works without it.
 Dockerfile                            multi-stage build: ChatWire + runtime (source: ./chatwire)
 docker-files/chatwire-entrypoint.sh   container entrypoint
 Makefile                              setup/build/up/down/logs shortcuts
+docker-compose.yml                    the committed service definitions — shared by everyone
+docker-compose.override.yml.example   template for local tweaks (see Local overrides)
+docker-compose.override.yml           yours, gitignored — merged on top automatically if present
 
 chatwire/                        git submodule — your ChatWire fork (build source)
 softmod/                         git submodule — your SoftMod fork; bind-mounted read-only to /softmod
@@ -215,14 +218,22 @@ to run `/factorio start`, `/rcon`, etc. needs a role with at least
    Discord text channel and paste its ID).
 6. (Optional) Set `Options.SoftModOptions.InjectSoftMod: false` if you don't
    want SoftMod — see [SoftMod](#softmod). It's checked out by default.
-7. Build and start:
+7. (Optional) Change ports, add a second server, or set resource limits
+   without touching the committed compose file — see
+   [Local overrides](#local-overrides).
+
+   ```bash
+   make override   # copies docker-compose.override.yml.example
+   ```
+
+8. Build and start:
 
    ```bash
    make up
    # or: docker compose up -d --build
    ```
 
-8. Watch it come up:
+9. Watch it come up:
 
    ```bash
    make logs
@@ -260,13 +271,57 @@ or throwaway containers needed to clean up. `web` (nginx) deliberately
 does **not** set this: nginx needs to start as root to bind port 80 and
 then drops privileges to its own unprivileged worker internally.
 
+## Local overrides
+
+`docker-compose.yml` is committed and shared. Anything specific to your
+machine — a different host port, RCON exposed, CPU/memory limits, an extra
+server — belongs in `docker-compose.override.yml` instead. Docker Compose
+reads both files and merges them automatically, with no `-f` flags and no
+Makefile changes, so `make up`, `make logs`, and plain `docker compose`
+commands all pick it up. The override file is gitignored, so your local
+tweaks stay out of every diff and `git pull` never conflicts with them.
+
+```bash
+make override          # copy docker-compose.override.yml.example (won't clobber an existing one)
+$EDITOR docker-compose.override.yml
+make config            # or: docker compose config — prints the merged result
+make up
+```
+
+The example file is fully commented out; uncomment the blocks you want.
+
+How the merge behaves, since it isn't uniform:
+
+| In the override file | Result |
+|---|---|
+| A scalar (`image`, `restart`, `user`, `build.context`) | Replaces the base value |
+| `environment`, `labels` | Merged per key — base keys you don't mention survive |
+| `ports`, `volumes`, `cap_add`, `dns` | **Appended** to the base list |
+| A service name not in the base file | Added to the project |
+
+The append behavior is the part that bites: you can add a port mapping, but
+you can't remove one the base file already defines. To move `web` off host
+port 80 you'd end up publishing both 80 and 8080 — if that matters, change
+the base file. Likewise there's no way to delete a service from an override;
+to run without the webserver, start only what you want:
+
+```bash
+docker compose up -d cw-a
+```
+
+`docker compose config` renders the fully merged configuration and is the
+fastest way to confirm an override did what you meant before starting
+anything.
+
 ## Running multiple servers
 
 ChatWire is one process per server, selected by working directory. To add
 a second server (`cw-b`) alongside `cw-a`, sharing the same Discord bot and
 `cw-global-config.json`:
 
-1. Add another service to `docker-compose.yml`, same build context, with:
+1. Add another service in `docker-compose.override.yml` (see
+   [Local overrides](#local-overrides) — the example file already has a
+   ready-to-uncomment `cw-b` block), same build context, with:
    ```yaml
    environment:
      - CW_DIR=/chatwire/cw-b
@@ -277,6 +332,8 @@ a second server (`cw-b`) alongside `cw-a`, sharing the same Discord bot and
      - ./www:/chatwire/www
      - ./softmod:/softmod:ro
    ```
+   A commented-out `cw-b` also sits in `docker-compose.yml` itself if you'd
+   rather commit the second server for everyone.
 2. After its first boot, edit `data/cw-b/cw-local-config.json`: set `Port`
    to something distinct (e.g. `10001`) and `Channel.ChatChannel` to a
    different Discord channel.

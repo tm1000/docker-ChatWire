@@ -2,3 +2,4 @@
 data/
 www/
 softmod/
+docker-compose*

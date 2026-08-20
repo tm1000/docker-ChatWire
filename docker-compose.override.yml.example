@@ -1,0 +1,82 @@
+# Local overrides — copy to docker-compose.override.yml and edit.
+#
+#   make override     # copies this file if docker-compose.override.yml is missing
+#
+# Docker Compose reads docker-compose.yml and docker-compose.override.yml
+# together automatically; no -f flags, no Makefile changes. The override file
+# is gitignored, so your machine-specific tweaks never show up in a diff and
+# `git pull` never conflicts with them.
+#
+# Merge rules that matter here:
+#   - scalars (image, restart, user) are replaced
+#   - `environment` merges per key
+#   - `ports`, `volumes`, `cap_add` are appended, not replaced — you can add
+#     entries but you cannot remove one the base file defines
+#   - a service that only exists here is added to the project
+#
+# Check the result before starting anything:
+#
+#   docker compose config
+#
+# Delete the blocks you don't need; everything below is commented out.
+
+services:
+
+  # --- cw-a: tweak the server that already exists ------------------------
+
+  # cw-a:
+  #   # Expose RCON on the host (base file has this commented out).
+  #   # Port = cw-a/cw-local-config.json Port + Global Options.RconOffset.
+  #   ports:
+  #     - "20000:20000/tcp"
+  #
+  #   # Extra env, merged with CW_DIR from the base file.
+  #   environment:
+  #     - TZ=America/New_York
+  #
+  #   # Keep a busy server from eating the whole box.
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "4.0"
+  #         memory: 8g
+
+  # --- web: move it off port 80, or turn it off --------------------------
+
+  # web:
+  #   ports:
+  #     - "8080:80"
+
+  # Compose can't delete a service from an override file. To run without the
+  # webserver, start only what you want instead:
+  #
+  #   docker compose up -d cw-a
+  #
+  # (`docker compose down` still stops everything.)
+
+  # --- cw-b: a second Factorio server ------------------------------------
+  #
+  # Same Discord bot and cw-global-config.json; only CW_DIR differs. After
+  # its first boot, edit data/cw-b/cw-local-config.json: set Port to 10001
+  # and Channel.ChatChannel to a different Discord channel.
+  # See "Running multiple servers" in README.md.
+
+  # cw-b:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   healthcheck:
+  #     disable: true
+  #   ports:
+  #     - "10001:10001/udp"   # Game port (cw-b/cw-local-config.json Port)
+  #     - "20001:20001/tcp"   # RCON port (Port + Global Options.RconOffset)
+  #   volumes:
+  #     - ./data:/chatwire
+  #     - ./www:/chatwire/www
+  #     - ./softmod:/softmod:ro
+  #   environment:
+  #     - CW_DIR=/chatwire/cw-b
+  #   cap_add:
+  #     - SYS_NICE
