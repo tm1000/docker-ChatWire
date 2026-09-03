@@ -64,7 +64,7 @@ data/                            → bind-mounted to /chatwire in the container
     factorio/                    downloaded Factorio binary + saves (created on first install)
     log/, audit-log/             ChatWire's own logs (also mirrored to `docker logs`)
 
-www/
+www/                             → bind-mounted to /www in cw-a, and read-only into the web container
   public_html/
     archive/                     zipped map archives (from /archive-map)
     modpack/                     zipped mod packs (from /modpack)
@@ -91,8 +91,8 @@ injection layer.
 | `Discord.Roles.RoleCache.*` | Resolved role **IDs** — auto-populated by ChatWire (`startGuildSyncLoop`, ~1x/min) once `Guild` is valid. Leave blank; don't hand-edit unless a role got recreated and the cache is stale. |
 | `Factorio.Username` / `Factorio.Token` | Your factorio.com account, used for mod-portal downloads |
 | `Paths.Folders.ServersRoot` | Base directory ChatWire installs Factorio/saves/mods under. Pinned to `/chatwire/` by the entrypoint on every boot (see below) — don't change it. |
-| `Paths.Folders.MapArchives` / `ModPack` | Where `/archive-map` and `/modpack` write zip files — points into `data/cw-a/../www/public_html/{archive,modpack}/` so nginx can serve them |
-| `Paths.URLs.Domain` / `PathPrefix` | Combined with `ArchivePath`/`ModPackPath` to build the download links posted in Discord |
+| `Paths.Folders.MapArchives` / `ModPack` | Where `/archive-map` and `/modpack` write zip files — points into `/www/public_html/{archive,modpack}/`, a separate bind mount from `ServersRoot`, so nginx can serve them |
+| `Paths.URLs.Domain` / `PathPrefix` | Combined with `ArchivePath`/`ModPackPath`/`LogsPathWeb` to build links posted in Discord — see [The webserver](#the-webserver-www) for why `PathPrefix` is `"/"` rather than empty |
 | `Options.RconOffset` | RCON port = server's `Port` + this offset |
 | `Options.UseAuthserver` | Enforces Factorio's own global ban list (`--use-authserver-bans`), separate from your own moderation |
 
@@ -329,7 +329,7 @@ a second server (`cw-b`) alongside `cw-a`, sharing the same Discord bot and
      - "10001:10001/udp"
    volumes:
      - ./data:/chatwire
-     - ./www:/chatwire/www
+     - ./www:/www
      - ./softmod:/softmod:ro
    ```
    A commented-out `cw-b` also sits in `docker-compose.yml` itself if you'd
@@ -373,7 +373,18 @@ This is entirely optional. If `Domain` is left as `localhost` (the
 default), ChatWire's own code skips link generation — `/archive-map` still
 writes the zip file, it just won't post a clickable link.
 
+`Paths.URLs.LogsPathWeb` (`/current-logs/` by default) works the same way
+for the "Log:" links ChatWire posts after bans and moderation actions —
+`GetGameLogURL()` (`cfg/localCfg.go`) builds them as
+`{Domain}{PathPrefix}{LogsPathWeb}{Callsign}/{filename}`. `docker-compose.yml`
+bind-mounts `data/cw-a/log` read-only to `current-logs/c` in the `web`
+container to match — the `c` **must** match `cw-a/cw-local-config.json`'s
+`Callsign`; update the mount if you change it, and add one such line per
+server for a multi-server setup. `Paths.URLs.LogPath` (`/logs/`) is defined
+in config but unused by ChatWire's own code — nothing generates a link with
+it — so it's left unwired.
+
 > [!NOTE]
 > Requesting `/` on the webserver returns 403 by design — there's no
 > `index.html` and directory listing (`autoindex`) is off. Direct file
-> links (`/archive/<file>.zip`) work fine.
+> links (`/archive/<file>.zip`, `/current-logs/c/<file>.log`) work fine.

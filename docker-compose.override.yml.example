@@ -74,7 +74,7 @@ services:
   #     - "20001:20001/tcp"   # RCON port (Port + Global Options.RconOffset)
   #   volumes:
   #     - ./data:/chatwire
-  #     - ./www:/chatwire/www
+  #     - ./www:/www
   #     - ./softmod:/softmod:ro
   #   environment:
   #     - CW_DIR=/chatwire/cw-b

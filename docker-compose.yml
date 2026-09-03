@@ -12,10 +12,12 @@ services:
 #      - "20000:20000/tcp"  # RCON port (Port + Global Options.RconOffset)
     volumes:
       - ./data:/chatwire
-      - ./www:/chatwire/www
+      - ./www:/www
       - ./softmod:/softmod:ro
     environment:
       - CW_DIR=/chatwire/cw-a
+      # - CW_ARGS=-regCommands  # Flags passed to /bin/ChatWire (default: none). Set once
+      #                         # on first boot, or after a slash command changes.
     cap_add:
       - SYS_NICE  # For process priority management
 
@@ -35,7 +37,7 @@ services:
   #     - "20001:20001/tcp"  # RCON port (Port + Global Options.RconOffset)
   #   volumes:
   #     - ./data:/chatwire
-  #     - ./www:/chatwire/www
+  #     - ./www:/www
   #     - ./softmod:/softmod:ro
   #   environment:
   #     - CW_DIR=/chatwire/cw-b
@@ -48,4 +50,10 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./www/public_html:/usr/share/nginx/html:ro
+      - ./www/public_html:/usr/share/nginx/html
+      # Serves the "Log:" links ChatWire posts after bans/moderation actions
+      # (LogsPathWeb URL: /current-logs/<Callsign>/<file>). The path segment
+      # after current-logs/ must match cw-a/cw-local-config.json's Callsign
+      # ("c") — update this if you ever change it. Add one line per server
+      # for a multi-server setup.
+      - ./data/cw-a/log:/usr/share/nginx/html/current-logs/c:ro
