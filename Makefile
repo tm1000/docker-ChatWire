@@ -54,5 +54,5 @@ update-submodules:
 	git submodule update --remote --merge
 
 chown:
-	sudo mkdir -p data www/public_html/archive www/public_html/modpack
+	sudo mkdir -p data www/public_html/archive www/public_html/modpack www/mapshot
 	sudo chown -R 1000:1000 data www

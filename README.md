@@ -68,6 +68,8 @@ www/                             → bind-mounted to /www in cw-a, and read-only
   public_html/
     archive/                     zipped map archives (from /archive-map)
     modpack/                     zipped mod packs (from /modpack)
+  mapshot/                       optional — mapshot's own Factorio copy + rendered map tiles,
+                                  see "Map viewer (mapshot)" below
 ```
 
 Everything under `data/` and `www/` is a bind mount, not a Docker volume —
@@ -395,3 +397,41 @@ left unwired.
 > `/current-logs/` specifically, so those two can be browsed; direct file
 > links (`/archive/<file>.zip`, `/current-logs/c/<file>.log`) work fine
 > either way.
+
+## Map viewer (mapshot)
+
+An optional live, zoomable web map of cw-a's saves, using
+[martydingo/factorio-mapshot-docker](https://github.com/martydingo/factorio-mapshot-docker)
+(a container around [Palats/mapshot](https://github.com/Palats/mapshot)).
+Off by default — enabling it adds two more containers and needs its own
+factorio.com credentials.
+
+It's two containers sharing one directory (`www/mapshot/`):
+
+- **`mapshot-render`** periodically renders cw-a's most recent save
+  (`MAPSHOT_SAVE_MODE=latest`, since ChatWire's autosave filenames rotate
+  and aren't fixed) into map tiles.
+- **`mapshot-serve`** serves those tiles and a small viewer UI on its own
+  HTTP server (port 8080) — not published to the host; `web` (nginx)
+  reverse-proxies it at `/mapshot/` instead, so the map sits behind the
+  same port-80 entry point as everything else.
+
+Both containers download and keep their **own** separate headless Factorio
+copy inside `www/mapshot/` (~1GB) purely for rendering — this is unrelated
+to (and doesn't touch) `data/cw-a/factorio/`, the actual game server.
+
+To enable it:
+
+1. Copy the `mapshot-render`/`mapshot-serve` block from
+   `docker-compose.override.yml.example` into `docker-compose.override.yml`
+   (`make override` first if you haven't already), and fill in
+   `FACTORIO_USERNAME`/`FACTORIO_TOKEN` with the same factorio.com account
+   already in `data/cw-global-config.json`'s `Factorio.Username`/`Token`.
+2. Uncomment the `/mapshot/`, `/data/` and `/latest/` locations in
+   `docker-files/nginx.conf` — mapshot's frontend hardcodes those as
+   root-absolute paths, so they need to be proxied at the top level even
+   though the viewer itself lives under `/mapshot/`.
+3. `docker compose up -d` (or `make up`), then `docker compose restart web`
+   to pick up the nginx change.
+4. Once cw-a has at least one save on disk, visit `http://<Domain>/mapshot/`.
+   Nothing renders until then — `mapshot-render` just keeps retrying.

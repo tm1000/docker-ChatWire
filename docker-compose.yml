@@ -44,6 +44,36 @@ services:
   #   cap_add:
   #     - SYS_NICE  # For process priority management
 
+  # Live web map (https://github.com/martydingo/factorio-mapshot-docker,
+  # rendering cw-a's saves with Palats/mapshot), served at /mapshot/ through
+  # the `web` container below — no host port published. Opt-in: this block
+  # has no credentials in it, so copy it into docker-compose.override.yml
+  # instead (a filled-in version is in docker-compose.override.yml.example)
+  # and also uncomment the matching /mapshot/, /data/ and /latest/ locations
+  # in docker-files/nginx.conf. See "Map viewer (mapshot)" in README.md.
+  # mapshot-render:
+  #   image: martydingo/mapshot:latest
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   environment:
+  #     - FACTORIO_USERNAME=  # same factorio.com account as
+  #     - FACTORIO_TOKEN=     # data/cw-global-config.json's Factorio.Username/Token
+  #     - MAPSHOT_MODE=render
+  #     - MAPSHOT_SAVE_MODE=latest  # always render whatever save is newest on disk
+  #     - MAPSHOT_INTERVAL=600      # max seconds per render before it's killed
+  #   volumes:
+  #     - ./data/cw-a/factorio/saves:/opt/factorio/saves:ro
+  #     - ./www/mapshot:/mapshot  # also where mapshot's own Factorio copy lands (~1GB)
+  #
+  # mapshot-serve:
+  #   image: martydingo/mapshot:latest
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   environment:
+  #     - MAPSHOT_MODE=serve
+  #   volumes:
+  #     - ./www/mapshot:/mapshot
+
   web:
     image: nginx:alpine
     restart: unless-stopped

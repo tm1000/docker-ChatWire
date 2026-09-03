@@ -80,3 +80,37 @@ services:
   #     - CW_DIR=/chatwire/cw-b
   #   cap_add:
   #     - SYS_NICE
+
+  # --- mapshot: live web map of cw-a's saves ------------------------------
+  #
+  # https://github.com/martydingo/factorio-mapshot-docker, rendering with
+  # Palats/mapshot. Fill in FACTORIO_USERNAME/FACTORIO_TOKEN below with the
+  # same factorio.com account as data/cw-global-config.json's
+  # Factorio.Username/Token — mapshot downloads its own separate headless
+  # Factorio copy under www/mapshot/ to do the rendering (~1GB, distinct
+  # from cw-a/factorio/). Also uncomment the /mapshot/, /data/ and /latest/
+  # locations in docker-files/nginx.conf, then `docker compose restart web`.
+  # See "Map viewer (mapshot)" in README.md.
+
+  # mapshot-render:
+  #   image: martydingo/mapshot:latest
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   environment:
+  #     - FACTORIO_USERNAME=
+  #     - FACTORIO_TOKEN=
+  #     - MAPSHOT_MODE=render
+  #     - MAPSHOT_SAVE_MODE=latest
+  #     - MAPSHOT_INTERVAL=600
+  #   volumes:
+  #     - ./data/cw-a/factorio/saves:/opt/factorio/saves:ro
+  #     - ./www/mapshot:/mapshot
+  #
+  # mapshot-serve:
+  #   image: martydingo/mapshot:latest
+  #   restart: unless-stopped
+  #   user: "1000:1000"
+  #   environment:
+  #     - MAPSHOT_MODE=serve
+  #   volumes:
+  #     - ./www/mapshot:/mapshot
