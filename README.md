@@ -376,15 +376,22 @@ writes the zip file, it just won't post a clickable link.
 `Paths.URLs.LogsPathWeb` (`/current-logs/` by default) works the same way
 for the "Log:" links ChatWire posts after bans and moderation actions —
 `GetGameLogURL()` (`cfg/localCfg.go`) builds them as
-`{Domain}{PathPrefix}{LogsPathWeb}{Callsign}/{filename}`. `docker-compose.yml`
-bind-mounts `data/cw-a/log` read-only to `current-logs/c` in the `web`
-container to match — the `c` **must** match `cw-a/cw-local-config.json`'s
-`Callsign`; update the mount if you change it, and add one such line per
-server for a multi-server setup. `Paths.URLs.LogPath` (`/logs/`) is defined
-in config but unused by ChatWire's own code — nothing generates a link with
-it — so it's left unwired.
+`{Domain}{PathPrefix}{LogsPathWeb}{Callsign}/{filename}`. Unlike
+`public_html`, this isn't nested under the `www/` bind mount: `docker-compose.yml`
+bind-mounts `data/cw-a/log` read-only straight to `/var/www/current-logs/c`
+in the `web` container, and `docker-files/nginx.conf`'s `/current-logs/`
+location uses `alias` to map the URL back onto that separate path — the `c`
+**must** match `cw-a/cw-local-config.json`'s `Callsign`; update the mount
+(and add a matching line to `nginx.conf` if the alias needs to branch per
+server) if you change it, and add one such volume line per server for a
+multi-server setup. `Paths.URLs.LogPath` (`/logs/`) is defined in config but
+unused by ChatWire's own code — nothing generates a link with it — so it's
+left unwired.
 
 > [!NOTE]
 > Requesting `/` on the webserver returns 403 by design — there's no
-> `index.html` and directory listing (`autoindex`) is off. Direct file
-> links (`/archive/<file>.zip`, `/current-logs/c/<file>.log`) work fine.
+> `index.html` and directory listing (`autoindex`) is off at the root.
+> `docker-files/nginx.conf` turns `autoindex` on for `/archive/` and
+> `/current-logs/` specifically, so those two can be browsed; direct file
+> links (`/archive/<file>.zip`, `/current-logs/c/<file>.log`) work fine
+> either way.

@@ -50,10 +50,13 @@ services:
     ports:
       - "80:80"
     volumes:
+      - ./docker-files/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./www/public_html:/usr/share/nginx/html
       # Serves the "Log:" links ChatWire posts after bans/moderation actions
-      # (LogsPathWeb URL: /current-logs/<Callsign>/<file>). The path segment
-      # after current-logs/ must match cw-a/cw-local-config.json's Callsign
-      # ("c") — update this if you ever change it. Add one line per server
-      # for a multi-server setup.
-      - ./data/cw-a/log:/usr/share/nginx/html/current-logs/c:ro
+      # (LogsPathWeb URL: /current-logs/<Callsign>/<file>). Mounted outside
+      # the www/public_html tree above; nginx.conf's /current-logs/ location
+      # uses `alias` to map the URL back onto this separate path. The path
+      # segment after current-logs/ must match cw-a/cw-local-config.json's
+      # Callsign ("c") — update this if you ever change it. Add one line per
+      # server for a multi-server setup.
+      - ./data/cw-a/log:/var/www/current-logs/c:ro
